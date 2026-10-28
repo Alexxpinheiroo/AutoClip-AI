@@ -55,6 +55,9 @@ class PipelineOptions:
     cta_text: str = "Siga para mais cortes!"
     use_emojis: bool = True
     output_language: str = "auto"  # auto, pt, es, en (idioma da copy/hashtags)
+    # Reaction-style layout: where the creator's facecam sits in the source
+    # recording (off = composition automática sem facecam).
+    facecam_position: str = "off"
 
     @classmethod
     def from_dict(cls, data: Optional[Dict[str, Any]]) -> "PipelineOptions":
@@ -63,6 +66,7 @@ class PipelineOptions:
         for key in (
             "whisper_model", "language", "subtitle_style", "ollama_model",
             "prompt", "genre", "aspect_ratio", "cta_text", "output_language",
+            "facecam_position",
         ):
             value = data.get(key)
             if isinstance(value, str) and value.strip():
@@ -374,9 +378,15 @@ def process_job(
         # When no face is present (e.g. first-person gameplay) a center crop
         # would cut HUD/inventory elements on the sides, so the full frame is
         # kept visible with a blurred background instead.
+        # Reaction layout: with a facecam position configured, the clip is
+        # composed as facecam on top + gameplay below (creator always visible).
         crop = None
         fit_full_frame = False
-        if options.use_face_tracking:
+        facecam_position = None
+        if options.facecam_position and options.facecam_position != "off" and target_aspect < 1.0:
+            facecam_position = options.facecam_position
+            update(slice_start + slice_size * 0.03, f"Corte {clip_number}/{total_clips}: montando layout com sua facecam...")
+        elif options.use_face_tracking:
             update(slice_start + slice_size * 0.03, f"Corte {clip_number}/{total_clips}: reenquadrando...")
             try:
                 reframe = face_tracker.calculate_crop_coordinates(
@@ -450,6 +460,7 @@ def process_job(
                 keep_intervals=plan[0] if plan else None,
                 edited_duration=plan[2] if plan else None,
                 fit_full_frame=fit_full_frame,
+                facecam_position=facecam_position,
             )
         except Exception as exc:
             if isinstance(exc, video_renderer.RenderCancelled) or (
@@ -476,6 +487,7 @@ def process_job(
                 target_width=target_width,
                 target_height=target_height,
                 fit_full_frame=fit_full_frame,
+                facecam_position=facecam_position,
             )
 
         thumbnail = video_renderer.extract_thumbnail(

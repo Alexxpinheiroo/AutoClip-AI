@@ -150,6 +150,17 @@
             </label>
 
             <label class="field">
+              <span>Sua facecam nos cortes</span>
+              <select id="facecamPosition">
+                <option value="off" selected>Não incluir (padrão inteligente)</option>
+                <option value="bottom_left">Canto inferior esquerdo</option>
+                <option value="bottom_right">Canto inferior direito</option>
+                <option value="top_left">Canto superior esquerdo</option>
+                <option value="top_right">Canto superior direito</option>
+              </select>
+            </label>
+
+            <label class="field">
               <span>CTA final</span>
               <input type="text" id="ctaText" maxlength="80" value="Siga para mais cortes!">
             </label>
@@ -456,7 +467,10 @@
     <aside class="sidebar">
       <div class="sidebar-head">
         <h2>Histórico</h2>
-        <button class="icon-btn" id="refreshHistory" title="Atualizar">🔄</button>
+        <div class="sidebar-head-actions">
+          <button class="icon-btn" id="clearHistory" title="Limpar todo o histórico">🧹</button>
+          <button class="icon-btn" id="refreshHistory" title="Atualizar">🔄</button>
+        </div>
       </div>
       <div class="history" id="historyList">
         <p class="empty">Nenhum processamento ainda.</p>

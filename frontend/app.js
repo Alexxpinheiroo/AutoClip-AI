@@ -285,6 +285,19 @@
     $("#startBtn").addEventListener("click", startProcessing);
     $("#cancelBtn").addEventListener("click", cancelJob);
     $("#refreshHistory").addEventListener("click", loadHistory);
+
+  $("#clearHistory").addEventListener("click", async () => {
+    if (!confirm("Apagar TODO o histórico e os arquivos gerados?")) return;
+    try {
+      await fetchJSON("/api/jobs", { method: "DELETE" });
+      state.jobId = null;
+      $("#resultsSection")?.classList.add("hidden");
+      toast("Histórico limpo.");
+      loadHistory();
+    } catch (error) {
+      toast(error.message);
+    }
+  });
     $("#openFolderBtn").addEventListener("click", openFolder);
 
     $("#urlInput").addEventListener("keydown", (event) => {
@@ -486,6 +499,7 @@
       prompt: $("#promptInput").value.trim(),
       genre: $("#genre").value || "auto",
       aspect_ratio: $("#aspectRatio").value || "9:16",
+      facecam_position: $("#facecamPosition")?.value || "off",
       cta_text: $("#ctaText").value.trim() || "Siga para mais cortes!",
       words_per_group: Number($("#wordsPerGroup")?.value) || 2,
       silence_threshold: parseFloat($("#silenceThreshold")?.value) || 0.55,
@@ -1092,17 +1106,37 @@
         }
 
         return `
-          <button class="history-item" data-job-id="${escapeHtml(job.id)}">
-            <span class="history-title">${modeIcon} ${escapeHtml(title)}</span>
-            <span class="history-meta">
-              <span>${date} • ${escapeHtml(summary)}</span>
-              <span class="status-pill status-${escapeHtml(job.status)}">${escapeHtml(job.status)}</span>
-            </span>
-          </button>`;
+          <div class="history-row">
+            <button class="history-item" data-job-id="${escapeHtml(job.id)}">
+              <span class="history-title">${modeIcon} ${escapeHtml(title)}</span>
+              <span class="history-meta">
+                <span>${date} • ${escapeHtml(summary)}</span>
+                <span class="status-pill status-${escapeHtml(job.status)}">${escapeHtml(job.status)}</span>
+              </span>
+            </button>
+            <button class="history-delete" data-job-id="${escapeHtml(job.id)}" title="Apagar do histórico">🗑️</button>
+          </div>`;
       }).join("");
 
       $$(".history-item").forEach((item) => {
         item.addEventListener("click", () => openJob(item.dataset.jobId));
+      });
+      $$(".history-delete").forEach((btn) => {
+        btn.addEventListener("click", async (event) => {
+          event.stopPropagation();
+          if (!confirm("Apagar este processamento e seus arquivos?")) return;
+          try {
+            await fetchJSON(`/api/jobs/${btn.dataset.jobId}`, { method: "DELETE" });
+            if (state.jobId === btn.dataset.jobId) {
+              state.jobId = null;
+              $("#resultsSection")?.classList.add("hidden");
+            }
+            toast("Processamento apagado.");
+            loadHistory();
+          } catch (error) {
+            toast(error.message);
+          }
+        });
       });
     } catch (_) {
       $("#historyList").innerHTML = `<p class="empty">Não foi possível carregar o histórico.</p>`;

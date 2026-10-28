@@ -200,6 +200,60 @@ def build_fit_filter_tail(
     )
 
 
+# Where the creator's facecam (PiP overlay) sits in the source recording,
+# as normalized (x, y, w, h) of the frame. Used by the "reaction layout"
+# which keeps the creator visible on top of the gameplay in vertical clips.
+FACECAM_REGIONS: Dict[str, Tuple[float, float, float, float]] = {
+    "bottom_left": (0.015, 0.57, 0.30, 0.42),
+    "bottom_right": (0.685, 0.57, 0.30, 0.42),
+    "top_left": (0.015, 0.01, 0.30, 0.42),
+    "top_right": (0.685, 0.01, 0.30, 0.42),
+}
+
+
+def build_facecam_filter_tail(
+    position: str,
+    subtitle_name: Optional[str] = None,
+    target_width: int = TARGET_WIDTH,
+    target_height: int = TARGET_HEIGHT,
+) -> Optional[str]:
+    """Builds a filter-graph tail for the reaction-style vertical layout.
+
+    The facecam region is stacked on top and the gameplay fills the rest of
+    the canvas (zoomed to fit), so the creator always appears in the clip.
+    ``{IN}`` is replaced with the input label ("[0:v]" or "[vc]").
+    Returns None when the position is unknown.
+    """
+    region = FACECAM_REGIONS.get(position)
+    if region is None:
+        return None
+    fx, fy, fw, fh = region
+    # Panel height keeps the region's aspect (assuming a 16:9 source), clamped
+    # to 30%-50% of the canvas so extreme regions cannot break the layout.
+    face_h = int(target_width * (fh * 9.0) / (fw * 16.0))
+    face_h = max(int(target_height * 0.30), min(int(target_height * 0.50), face_h))
+    face_h -= face_h % 2
+    game_h = target_height - face_h
+    # Horizontal gravity opposite to the facecam side, so the PiP overlay
+    # burned into the source frame does not appear twice.
+    if position.endswith("left"):
+        game_x = f"iw-{target_width}"
+    elif position.endswith("right"):
+        game_x = "0"
+    else:
+        game_x = f"(iw-{target_width})/2"
+    subtitle_part = f",subtitles={subtitle_name}" if subtitle_name else ""
+    return (
+        "{IN}split=2[fcsrc][gpsrc];"
+        f"[fcsrc]crop=iw*{fw}:ih*{fh}:iw*{fx}:ih*{fy},"
+        f"scale={target_width}:{face_h}:force_original_aspect_ratio=increase,"
+        f"crop={target_width}:{face_h}[fcpane];"
+        f"[gpsrc]scale={target_width}:{game_h}:force_original_aspect_ratio=increase,"
+        f"crop={target_width}:{game_h}:{game_x}:0[gppane];"
+        f"[fcpane][gppane]vstack=inputs=2,setsar=1{subtitle_part}[vout]"
+    )
+
+
 def _normalize_keep_intervals(
     keep_intervals: Optional[List[Tuple[float, float]]],
     start_time: float,
@@ -288,6 +342,7 @@ def render_clip(
     keep_intervals: Optional[List[Tuple[float, float]]] = None,
     edited_duration: Optional[float] = None,
     fit_full_frame: bool = False,
+    facecam_position: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Cuts a clip from ``video_path``, reframes it to the requested aspect ratio
@@ -297,6 +352,9 @@ def render_clip(
     When ``fit_full_frame`` is True the whole source frame is kept visible on
     the target canvas with a blurred background instead of being cropped
     (used when no face is detected, e.g. first-person gameplay).
+
+    When ``facecam_position`` is set (and the target is vertical), the clip is
+    composed in the reaction style: facecam panel on top, gameplay below.
 
     Uses NVENC when available and transparently falls back to libx264 if
     hardware encoding fails.
@@ -318,14 +376,17 @@ def render_clip(
         subtitle_name = subtitle.name
         cwd = str(subtitle.parent)
 
-    fit_tail = (
-        build_fit_filter_tail(subtitle_name, target_width, target_height)
-        if fit_full_frame
-        else None
-    )
+    tail: Optional[str] = None
+    if facecam_position and target_height > target_width:
+        tail = build_facecam_filter_tail(facecam_position, subtitle_name, target_width, target_height)
+        if tail is None:
+            facecam_position = None
+    if tail is None and fit_full_frame:
+        tail = build_fit_filter_tail(subtitle_name, target_width, target_height)
     video_filter = (
-        None if fit_full_frame
-        else build_video_filters(crop, subtitle_name, target_width, target_height)
+        build_video_filters(crop, subtitle_name, target_width, target_height)
+        if tail is None
+        else None
     )
     has_audio = has_audio_stream(video_path)
 
@@ -342,16 +403,16 @@ def render_clip(
 
         if use_cuts and intervals:
             filter_complex, video_label, audio_label = _build_filter_complex(
-                video_filter or "", intervals, has_audio, fit_tail=fit_tail
+                video_filter or "", intervals, has_audio, fit_tail=tail
             )
             cmd += ["-filter_complex", filter_complex, "-map", video_label]
             if has_audio and audio_label:
                 cmd += ["-map", audio_label]
             else:
                 cmd += ["-an"]
-        elif fit_tail:
-            # No cuts: apply the fit graph directly on the input stream.
-            cmd += ["-filter_complex", fit_tail.replace("{IN}", "[0:v]"), "-map", "[vout]"]
+        elif tail:
+            # No cuts: apply the graph directly on the input stream.
+            cmd += ["-filter_complex", tail.replace("{IN}", "[0:v]"), "-map", "[vout]"]
             if has_audio:
                 cmd += ["-map", "0:a:0"]
             else:

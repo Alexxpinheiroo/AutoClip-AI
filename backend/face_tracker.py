@@ -82,7 +82,10 @@ def _detect_faces_mediapipe(mp, detector, frame_bgr) -> List[Tuple[int, int, int
     boxes: List[Tuple[int, int, int, int]] = []
     for detection in result.detections or []:
         box = detection.bounding_box
-        boxes.append((int(box.x), int(box.y), int(box.width), int(box.height)))
+        # mediapipe >= 1.0 renamed origin_x/origin_y; older versions use x/y.
+        x = int(getattr(box, "origin_x", getattr(box, "x", 0)))
+        y = int(getattr(box, "origin_y", getattr(box, "y", 0)))
+        boxes.append((x, y, int(box.width), int(box.height)))
     return boxes
 
 

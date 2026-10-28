@@ -28,6 +28,7 @@ Gere **Shorts, Reels e TikToks** automaticamente a partir de vídeos longos, **1
 8. **Legendas Animadas Dinâmicas**: Legendas estilo Hormozi / MrBeast em formato `.ass`, destaque palavra por palavra, gancho nos primeiros segundos, chamada para ação (CTA) ao final e suporte a emojis contextuais.
 9. **Renderização Acelerada por Hardware**: Exportação ultra-rápida via `ffmpeg` com encoder NVIDIA NVENC (`h264_nvenc`) com fallback inteligente para CPU (`libx264`).
 10. **Kit de Publicação Pronto**: Gera automaticamente título chamativo, gancho, descrição e hashtags relevantes para copiar e colar diretamente nas redes.
+11. **Layout Facecam (estilo reação)**: informa em qual canto fica sua facecam na gravação e o corte é montado com ela em destaque no topo e o gameplay abaixo — você sempre aparece no clipe, mesmo em gameplay em primeira pessoa.
 
 Tudo gerenciado através de uma **Interface Web moderna**, com progresso em tempo real via WebSocket, histórico de jobs e download dos clipes prontos.
 

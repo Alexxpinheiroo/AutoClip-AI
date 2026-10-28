@@ -404,12 +404,38 @@ def cancel_job(job_id: str) -> Dict[str, Any]:
 
 @app.delete("/api/jobs/{job_id}")
 def delete_job(job_id: str) -> Dict[str, Any]:
-    """Removes a job from the history."""
+    """Removes a job from the history and deletes its output files."""
     with JOBS_LOCK:
         job = JOBS.pop(job_id, None)
     if not job:
         raise HTTPException(status_code=404, detail="Job não encontrado.")
+    if job.status in ("processing", "queued"):
+        with JOBS_LOCK:
+            JOBS[job_id] = job  # restore: cannot delete a running job
+        raise HTTPException(status_code=409, detail="Não é possível apagar um job em execução.")
+    folder = Path(job.output_dir) if job.output_dir else OUTPUTS_DIR / job_id
+    if folder.is_dir():
+        shutil.rmtree(folder, ignore_errors=True)
     return {"ok": True}
+
+
+@app.delete("/api/jobs")
+def clear_jobs() -> Dict[str, Any]:
+    """Clears the whole history (keeps jobs that are still running)."""
+    removed = 0
+    with JOBS_LOCK:
+        snapshot = dict(JOBS)
+        JOBS.clear()
+    for job_id, job in snapshot.items():
+        if job.status in ("processing", "queued"):
+            with JOBS_LOCK:
+                JOBS[job_id] = job  # keep running jobs
+            continue
+        folder = Path(job.output_dir) if job.output_dir else OUTPUTS_DIR / job_id
+        if folder.is_dir():
+            shutil.rmtree(folder, ignore_errors=True)
+        removed += 1
+    return {"ok": True, "removed": removed}
 
 
 @app.post("/api/jobs/{job_id}/open-folder")

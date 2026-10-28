@@ -767,6 +767,30 @@ input[type="range"]::-moz-range-thumb {
 
 .sidebar-head h2 { margin: 0; font-size: 15px; font-weight: 800; }
 
+.sidebar-head-actions { display: flex; align-items: center; gap: 4px; }
+
+.history-row {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+}
+
+.history-row .history-item { flex: 1; min-width: 0; }
+
+.history-delete {
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--muted);
+  border-radius: 11px;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0 6px;
+  opacity: 0.55;
+  transition: opacity 0.15s, background 0.15s, color 0.15s;
+}
+
+.history-delete:hover { opacity: 1; color: #f87171; background: rgba(248, 113, 113, 0.1); }
+
 .history {
   display: flex;
   flex-direction: column;
