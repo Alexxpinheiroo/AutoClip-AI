@@ -54,6 +54,7 @@ class PipelineOptions:
     show_cta: bool = True
     cta_text: str = "Siga para mais cortes!"
     use_emojis: bool = True
+    output_language: str = "auto"  # auto, pt, es, en (idioma da copy/hashtags)
 
     @classmethod
     def from_dict(cls, data: Optional[Dict[str, Any]]) -> "PipelineOptions":
@@ -61,7 +62,7 @@ class PipelineOptions:
         options = cls()
         for key in (
             "whisper_model", "language", "subtitle_style", "ollama_model",
-            "prompt", "genre", "aspect_ratio", "cta_text",
+            "prompt", "genre", "aspect_ratio", "cta_text", "output_language",
         ):
             value = data.get(key)
             if isinstance(value, str) and value.strip():
@@ -330,10 +331,11 @@ def process_job(
     clips = analyzer.enrich_clips(
         clips,
         prompt=options.prompt,
-        genre=options.genre,
+        genre=analyzer._effective_genre(transcript.get("full_text", ""), options.genre),
         language=transcript.get("language"),
         use_ollama=options.use_ollama,
         ollama_model=options.ollama_model,
+        output_language=options.output_language,
     )
     _check_cancel(cancel_event)
 

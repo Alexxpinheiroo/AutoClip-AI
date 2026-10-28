@@ -4,6 +4,16 @@ Gere **Shorts, Reels e TikToks** automaticamente a partir de vídeos longos, **1
 
 ---
 
+## 🆕 Novidades desta versão
+
+- **🦻 Transcrição bilíngue real (pt/es)**: pipeline de 3 estágios que resolve vídeos com troca de idioma no meio da fala (code-switching) — detecção multi-região com VAD, transcrição com idioma dominante fixado e "resgate" de trechos de baixa confiança no idioma correto. Fim das legendas em "portunhol quebrado".
+- **🧠 Modelo padrão `large-v3`**: melhor precisão multilíngue do Whisper rodando local na sua RTX (opção `large-v3-turbo` disponível).
+- **🚀 Pacote de Publicação**: todo vídeo processado sai com títulos chamativos, descrição pronta, hashtags relevantes e CTA de inscrição — painel dedicado na interface com botões de copiar.
+- **🌐 Seletor de idioma da copy**: escolha se os títulos/descrições/hashtags saem em **Português, Espanhol ou Inglês**, independente do idioma falado no vídeo (ou deixe no automático).
+- **🎯 Seletor de momentos turbinado**: detecção automática de gênero com vocabulário específico (games/survival: raid, C4, loot, tribu...), isenção de "hype" no detector de repetição (empolgação real não é alucinação) e pesos ajustados por gênero.
+
+---
+
 ## 🚀 O que ele faz
 
 ### Modo Cortes Virais
@@ -20,6 +30,18 @@ Gere **Shorts, Reels e TikToks** automaticamente a partir de vídeos longos, **1
 10. **Kit de Publicação Pronto**: Gera automaticamente título chamativo, gancho, descrição e hashtags relevantes para copiar e colar diretamente nas redes.
 
 Tudo gerenciado através de uma **Interface Web moderna**, com progresso em tempo real via WebSocket, histórico de jobs e download dos clipes prontos.
+
+### Modo Vídeo Completo
+
+Para publicar o episódio inteiro no YouTube com cara de profissional:
+
+1. **Legendas completas sincronizadas** palavra por palavra, com estilos limpos para YouTube.
+2. **Capítulos automáticos**: detecta os momentos marcantes do vídeo e gera os timestamps da descrição.
+3. **Pacote de Publicação do vídeo**: 3 sugestões de título, descrição completa com CTA de inscrição, hashtags e tags — salvo em `youtube_metadata.txt` e `metadata.json` junto do vídeo final.
+4. **Adesivos/destaques periódicos** opcionais na timeline (modo automático ou intervalo customizado).
+5. **Mesmo motor de transcrição bilíngue** e renderização NVENC do modo cortes.
+
+> 🌐 Em ambos os modos, o **idioma do pacote de publicação** é escolhível: `Automático` (segue o idioma detectado do vídeo), `Português`, `Espanhol` ou `Inglês`.
 
 ---
 
@@ -57,6 +79,8 @@ pip install torch torchvision torchaudio --index-url https://download.pytorch.or
 ```bash
 pip install -r requirements.txt
 ```
+
+> 💡 **Modelo de transcrição**: o padrão é o `large-v3` (melhor qualidade multilíngue). Na primeira execução ele é baixado automaticamente para a pasta `models/` (~3 GB). Para máquinas com menos VRAM, selecione `large-v3-turbo`, `medium` ou `base` na interface.
 
 ---
 
@@ -125,20 +149,24 @@ Ative a opção **Ollama (IA Local)** na interface gráfica ou utilize a flag `-
 
 ## 📂 Estrutura do Projeto
 
-```
+```text
 AutoClip-AI/
 ├── backend/
 │   ├── analyzer.py            # Ranking heurístico, análise de prompt e viral score
+│   ├── chapter_generator.py   # Detecção automática de capítulos (modo vídeo completo)
 │   ├── cli.py                 # Interface de linha de comando
 │   ├── config.py              # Configurações de diretórios, GPU e formatos
 │   ├── downloader.py          # Download via yt-dlp e manipulação de arquivos
 │   ├── errors.py              # Tratamento centralizado de exceções
 │   ├── face_tracker.py        # Rastreamento facial (MediaPipe BlazeFace) e crop
+│   ├── full_video_pipeline.py # Pipeline do modo Vídeo Completo (legendas + capítulos + pacote)
 │   ├── media_signals.py       # Extração de energia sonora e detecção de cenas
+│   ├── metadata_generator.py  # Pacote de publicação (títulos, descrição, hashtags, CTA)
 │   ├── pipeline.py            # Orquestrador do fluxo completo de ponta a ponta
 │   ├── server.py              # Servidor API FastAPI e conexões WebSocket
+│   ├── sticker_generator.py   # Adesivos/destaques na timeline (modo vídeo completo)
 │   ├── subtitle_generator.py  # Renderização de legendas .ass e estilos
-│   ├── transcriber.py         # Transcrição via faster-whisper com timestamps
+│   ├── transcriber.py         # Transcrição bilíngue 3 estágios via faster-whisper
 │   └── video_renderer.py      # Renderização final com FFmpeg + NVENC
 ├── frontend/                  # Interface web (HTML5, CSS3, JavaScript puro)
 ├── downloads/                 # Cache de downloads temporários

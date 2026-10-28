@@ -67,6 +67,26 @@ SUBTITLE_STYLES = {
         "bold": 1,
         "margin_v": 220,
     },
+    "youtube_clean": {
+        "primary": "&H00FFFFFF&",
+        "highlight": "&H0000D4FF&",
+        "outline": "&H00121212&",
+        "accent": "&H0000D4FF&",
+        "fontsize": 44,
+        "fontname": "Arial",
+        "bold": 1,
+        "margin_v": 75,
+    },
+    "bold_cinema": {
+        "primary": "&H00FFFFFF&",
+        "highlight": "&H0033CCFF&",
+        "outline": "&H00000000&",
+        "accent": "&H0033CCFF&",
+        "fontsize": 48,
+        "fontname": "Trebuchet MS",
+        "bold": 1,
+        "margin_v": 80,
+    },
 }
 
 EMOJI_MAP = {
@@ -285,4 +305,28 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             )
 
     Path(output_path).write_text(header + "\n".join(dialogue_lines) + "\n", encoding="utf-8")
+    return output_path
+
+
+def generate_srt_subtitles(segments: List[Dict[str, Any]], output_path: str) -> str:
+    """Generates standard .srt format subtitles from Whisper segments."""
+    lines: List[str] = []
+    for idx, seg in enumerate(segments, 1):
+        s_sec = max(0.0, float(seg.get("start", 0.0)))
+        e_sec = max(s_sec + 0.1, float(seg.get("end", 0.0)))
+
+        s_h, s_rem = divmod(s_sec, 3600)
+        s_m, s_s = divmod(s_rem, 60)
+        s_ms = int((s_s - int(s_s)) * 1000)
+
+        e_h, e_rem = divmod(e_sec, 3600)
+        e_m, e_s = divmod(e_rem, 60)
+        e_ms = int((e_s - int(e_s)) * 1000)
+
+        start_str = f"{int(s_h):02d}:{int(s_m):02d}:{int(s_s):02d},{s_ms:03d}"
+        end_str = f"{int(e_h):02d}:{int(e_m):02d}:{int(e_s):02d},{e_ms:03d}"
+        text = str(seg.get("text", "")).strip()
+        lines.append(f"{idx}\n{start_str} --> {end_str}\n{text}\n")
+
+    Path(output_path).write_text("\n".join(lines), encoding="utf-8")
     return output_path

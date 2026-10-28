@@ -37,18 +37,33 @@ VIRAL_HOOK_KEYWORDS_EN = [
     "worst", "fast", "easy", "hack", "tip", "rule", "result", "success",
 ]
 
+VIRAL_HOOK_KEYWORDS_ES = [
+    "secreto", "error", "nunca", "siempre", "dinero", "fórmula", "estrategia",
+    "atención", "cuidado", "verdad", "mentira", "nadie", "por qué", "cuál",
+    "mejor", "peor", "rápido", "fácil", "difícil", "truco", "regla", "método",
+    "resultado", "éxito", "fracaso", "cambió", "mira esto", "no vas a creer",
+    "escucha", "increíble", "órale", "impactante",
+]
+
 EMOTION_WORDS = [
     "incrível", "absurdo", "insano", "chocante", "inacreditável", "medo", "ódio",
     "amor", "raiva", "explodiu", "bombou", "gigante", "enorme", "brutal", "louco",
     "hilário", "engraçado", "melhor", "pior", "nunca", "sempre", "impossível",
     "amazing", "crazy", "insane", "shocking", "unbelievable", "hate", "love",
     "angry", "huge", "best", "worst", "never", "always", "impossible",
+    # ES
+    "increíble", "impresionante", "insano", "chocante", "incredible", "miedo",
+    "odio", "amor", "rabia", "explotó", "gigante", "enorme", "brutal", "loco",
+    "hilariante", "gracioso", "carajo", "mierda", "dios", "terrible", "asombroso",
 ]
 
 CONCLUSION_WORDS = [
     "então", "por isso", "no final", "resultado", "conclusão", "aprendi", "moral",
     "resumindo", "ou seja", "therefore", "so that", "in the end", "the result",
     "lesson", "conclusion",
+    # ES
+    "entonces", "por eso", "al final", "resultado", "conclusión", "aprendí",
+    "resumiendo", "o sea",
 ]
 
 GENRE_PRESETS: Dict[str, Dict[str, Any]] = {
@@ -59,7 +74,9 @@ GENRE_PRESETS: Dict[str, Dict[str, Any]] = {
     },
     "viral": {
         "label": "Viral geral",
-        "keywords": VIRAL_HOOK_KEYWORDS_PT + VIRAL_HOOK_KEYWORDS_EN,
+        "keywords": (
+            VIRAL_HOOK_KEYWORDS_PT + VIRAL_HOOK_KEYWORDS_EN + VIRAL_HOOK_KEYWORDS_ES
+        ),
         "hashtags": ["viral", "shorts", "fyp"],
     },
     "humor": {
@@ -112,6 +129,24 @@ GENRE_PRESETS: Dict[str, Dict[str, Any]] = {
             "jogo", "jogada", "gameplay", "gol", "vitória", "derrota", "clutch",
             "insano", "partida", "campeonato", "game", "play", "win", "clutch",
             "match", "championship",
+            # Survival / PvP vocabulary (pt + es) - ARK, Rust, Fortnite, etc.
+            "raid", "raideo", "saquear", "saqueamos", "saqueando", "invasão",
+            "invasión", "invasao", "c4", "explosivo", "explosivos", "loot",
+            "botín", "botin", "saqueo", "pvp", "boss", "épico", "épica",
+            "epico", "dino", "dinos", "dinossauro", "dinossauros", "dinosaurio",
+            "dinosaurios", "tribu", "tribo", "torreta", "torretas", "grifo",
+            "griffin", "cryopod", "cryopods", "spawn", "farm", "farmeando",
+            "base", "bases", "asalto", "ataque", "defensa", "defesa",
+            "bolsa", "bolsas", "bolsitas", "bolsita", "municion", "munición",
+            "metal", "saco", "hueco",
+            # Dinos & items específicos (ARK)
+            "estego", "estegos", "stego", "trike", "trikes", "parasaurio",
+            "parasauro", "rex", "wyvern", "giganoto", "giga", "huevo", "huevos",
+            "ovo", "ovos", "fertilizado", "artefacto", "artefactos", "artefato",
+            "artefatos", "montura", "montaria", "polímero", "polimero",
+            "generador", "gerador", "gasolina", "drop", "desierto", "deserto",
+            # Variantes comuns de ASR
+            "creopod", "creopods", "criopod", "criopods", "ese 4", "el 4",
         ],
         "hashtags": ["games", "gameplay", "gamer"],
     },
@@ -160,6 +195,21 @@ STOPWORDS = {
     # ES
     "el", "la", "los", "las", "un", "una", "y", "o", "pero", "si", "de", "del",
     "en", "por", "para", "con", "sin", "que", "es", "son", "fue", "ser", "estar",
+    # ES (extended - fillers that poison hashtags and keyword matching)
+    "hay", "habia", "había", "mira", "miren", "mirar", "mirando", "entonces",
+    "tambien", "también", "solamente", "solamente", "verdad", "nada", "nadie",
+    "aqui", "aquí", "ahi", "ahí", "alli", "allá", "cuando", "donde", "porque",
+    "muy", "todos", "todas", "todo", "toda", "este", "esta", "esto", "estos",
+    "estas", "eso", "esa", "ese", "aquel", "aquella", "ellos", "ellas",
+    "nosotros", "ustedes", "usted", "tengo", "tiene", "tienen", "tenemos",
+    "puede", "pueden", "podemos", "hacer", "hace", "hacen", "dice", "dijo",
+    "digan", "estoy", "estaba", "estaban", "estamos", "somos", "soy", "eran",
+    "hacia", "hacia", "creo", "creemos", "parece", "vamos", "va", "van",
+    "vez", "veces", "cosa", "cosas", "bien", "asi", "así", "modo", "solo",
+    "sola", "solos", "solos", "ahora", "despues", "después", "antes", "aqui",
+    "tal", "cual", "según", "segun", "cada", "otro", "otra", "otros", "otras",
+    "mismo", "misma", "tanta", "tanto", "tantos", "tantas", "algun", "algún",
+    "alguna", "algunos", "algunas", "nuestro", "nuestra", "pendejo", "pendejos",
 }
 
 PROMPT_GENERIC_TOKENS = {
@@ -221,6 +271,13 @@ def _repetition_penalty(text: str) -> int:
     Repeated hallucinated segments poison both the ranking and the captions.
     The score is intentionally cheap to compute: token frequency, bigram
     repetition and immediate duplicates are enough to catch ASR loops.
+
+    HYPE EXEMPTION: short consecutive exclamations ("un grifo, un grifo",
+    "vamos, vamos") are genuine creator excitement, not hallucination. A
+    repeated 2-word phrase with a real word (not identical fillers) repeated
+    at most 5 times is treated as hype and barely penalized. True ASR loops
+    either repeat identical filler words ("mais mais mais") or repeat 6+
+    times.
     """
     words = _normalize(text).split()
     if len(words) < 8:
@@ -241,11 +298,13 @@ def _repetition_penalty(text: str) -> int:
         penalty += 10
 
     bigrams = list(zip(words, words[1:]))
+    top_bigram_count = 0
+    top_bigram_pair: Optional[Tuple[str, str]] = None
     if bigrams:
-        top_bigram = max(Counter(bigrams).values())
-        if top_bigram >= 4:
+        top_bigram_pair, top_bigram_count = Counter(bigrams).most_common(1)[0]
+        if top_bigram_count >= 4:
             penalty += 22
-        elif top_bigram >= 3:
+        elif top_bigram_count >= 3:
             penalty += 12
 
     immediate = sum(1 for first, second in zip(words, words[1:]) if first == second)
@@ -253,6 +312,27 @@ def _repetition_penalty(text: str) -> int:
         penalty += 16
     elif immediate >= 2:
         penalty += 8
+
+    # Hype exemption - see docstring. The top repeated word must be a real
+    # word (ASR loops repeat fillers like "mais/ok/e"), repeat counts stay
+    # bounded, and no long phrase (4-gram) may repeat 3+ times.
+    filler_loop_words = {
+        "mais", "ok", "okey", "e", "a", "o", "uh", "ah", "eh", "na", "ya",
+        "ja", "va", "vai", "da", "de", "di", "du", "la", "le", "lo", "el",
+        "un", "uma", "que", "que", "yo", "tu", "vo",
+    }
+    top_word, top_word_count = counts.most_common(1)[0]
+    fourgrams = list(zip(words, words[1:], words[2:], words[3:]))
+    top_fourgram = max(Counter(fourgrams).values(), default=0)
+    is_hype = (
+        top_word not in filler_loop_words
+        and top_word_count <= 6
+        and (top_bigram_pair is None or top_bigram_count <= 6)
+        and top_fourgram < 3
+    )
+    if is_hype:
+        penalty = min(penalty, 10)
+
     return min(60, penalty)
 
 
@@ -299,14 +379,34 @@ HASHTAG_EXCLUDE = {
     "tudo", "beleza", "assim", "tambem", "também", "apenas", "somente",
     "nao", "não", "sim", "ah", "oh", "pode", "parece", "joguei", "queria",
     "dizer", "achou", "acho", "coisa", "coisas", "mais", "menos",
+    # ES fillers
+    "hay", "habia", "había", "mira", "miren", "entonces", "tambien", "también",
+    "solamente", "verdad", "nada", "nadie", "bueno", "claro", "creo", "vamos",
+    "hacer", "dice", "dijo", "estar", "estoy", "estaba", "estaban", "aqui",
+    "aquí", "ahi", "ahí", "cuando", "donde", "porque", "muy", "pero", "este",
+    "esta", "esto", "estos", "estas", "eso", "esa", "ese", "ellos", "nosotros",
+    "ustedes", "tiene", "tienen", "tengo", "tenemos", "puede", "pueden",
+    "quizas", "quizás", "igual", "poco", "mucho", "mucha", "muchos", "muchas",
+    "ahora", "despues", "después", "antes", "solo", "sola", "asi", "así",
+    "algun", "algún", "alguna", "pendejo", "carajo", "okey", "okay", "listo",
 }
 
 THEME_TAGS = {
     "dinossauro": ["ark", "sobrevivencia"],
+    "dinosauro": ["ark", "gaming"],
+    "dinos": ["ark", "gaming"],
     "ark": ["ark", "sobrevivencia"],
     "sobreviver": ["sobrevivencia"],
     "predador": ["sobrevivencia"],
     "predadores": ["sobrevivencia"],
+    "raid": ["ark", "pvp", "gaming"],
+    "raideo": ["ark", "pvp", "gaming"],
+    "saqueo": ["ark", "pvp", "gaming"],
+    "pvp": ["pvp", "gaming"],
+    "grifo": ["ark", "gaming"],
+    "griffin": ["ark", "gaming"],
+    "torreta": ["ark", "gaming"],
+    "cryopod": ["ark", "gaming"],
     "dinheiro": ["financas"],
     "lucro": ["financas"],
     "faturamento": ["financas"],
@@ -325,6 +425,10 @@ INTRO_MARKERS = (
     "neste episodio", "no episodio", "terceiro episodio", "episodio da serie",
     "meu canal", "nesse video", "neste video", "trazendo para voces",
     "vou mostrar para voces", "esta chegando", "está chegando",
+    # ES
+    "que tal youtube", "qué tal youtube", "llego otro episodio", "llegó otro episodio",
+    "bienvenidos al canal", "bienvenido al canal", "otro episodio de nuestra serie",
+    "nuestra serie", "en el canal",
 )
 
 HOUSEKEEPING_MARKERS = (
@@ -332,6 +436,10 @@ HOUSEKEEPING_MARKERS = (
     "episodio da serie", "se inscreve", "deixa o like", "deixe o like",
     "bem-vindo ao meu canal", "bem vindo ao meu canal", "tudo beleza",
     "vou mostrar para voces", "trazendo para voces",
+    # ES
+    "suscribete", "suscríbete", "activa la campanita", "deja tu like",
+    "deja un like", "dejen su like", "comenta", "deje su comentario",
+    "dejen su comentario", "sigue el canal", "sigue no canal",
 )
 
 
@@ -891,13 +999,22 @@ def _prompt_features(prompt: str, text: str) -> Tuple[int, List[str]]:
 def _hook_score(text: str) -> int:
     opening = clean_text(text)[:150].lower()
     score = 46.0
-    if re.match(r"^(por que|como|qual|o que|quando|onde|quem|voc[eê]|já|why|how|what|when|where|who|did you|have you)", opening):
+    if re.match(
+        r"^(por que|por qué|como|c[oó]mo|qual|cu[aá]l|o que|qu[eé]|quando|cu[aá]ndo|"
+        r"onde|d[oó]nde|quem|qui[eé]n|voc[eê]|t[uú]|j[aá]|why|how|what|when|where|who|did you|have you)",
+        opening,
+    ):
         score += 30
-    elif "?" in opening:
+    elif "?" in opening or "¿" in opening:
         score += 18
-    if re.search(r"\b(nunca|sempre|ningu[ée]m|segredo|verdade|erro|aten[cç][aã]o|cuidado|imagina|descobri|descobriram|acabei de)\b", opening):
+    if re.search(
+        r"\b(nunca|sempre|siempre|ningu[ée]m|nadie|segredo|secreto|verdade|verdad|"
+        r"erro|error|aten[cç][aã]o|atenci[oó]n|cuidado|imagina|descobri|descubr[ií]|"
+        r"acabei de|acabo de)\b",
+        opening,
+    ):
         score += 20
-    if re.match(r"^(eu|quando eu|aconteceu|deixa eu|olha|escuta|imagina|i |when i)", opening):
+    if re.match(r"^(eu|quando eu|aconteceu|deixa eu|olha|mira|escuta|oye|imagina|i |when i)", opening):
         score += 12
     if re.search(r"\d", opening[:90]):
         score += 8
@@ -910,7 +1027,9 @@ def _hook_score(text: str) -> int:
 
 def _keyword_score(text: str, genre: str) -> Tuple[int, List[str]]:
     normalized = _normalize(text)
-    viral = VIRAL_HOOK_KEYWORDS_PT + VIRAL_HOOK_KEYWORDS_EN
+    viral = (
+        VIRAL_HOOK_KEYWORDS_PT + VIRAL_HOOK_KEYWORDS_EN + VIRAL_HOOK_KEYWORDS_ES
+    )
     matched_viral = [kw for kw in viral if _normalize(kw) and _normalize(kw) in normalized]
     genre_words = GENRE_PRESETS.get(genre, {}).get("keywords", []) or []
     matched_genre = [kw for kw in genre_words if _normalize(kw) and _normalize(kw) in normalized]
@@ -1014,6 +1133,15 @@ def score_segment_detailed(
             "prompt": 0.30, "hook": 0.17, "keywords": 0.12, "emotion": 0.12,
             "pacing": 0.09, "audio": 0.08, "visual": 0.07, "retention": 0.05,
         }
+    elif genre == "games":
+        # Gaming clips live on energy and highlights, not on continuous talk:
+        # shouting + explosions + sparse speech is exactly what goes viral in
+        # gameplay content. De-emphasize pacing/retention, reward keywords,
+        # emotion and loud/animated moments.
+        weights = {
+            "prompt": 0.00, "hook": 0.16, "keywords": 0.24, "emotion": 0.22,
+            "pacing": 0.05, "audio": 0.20, "visual": 0.10, "retention": 0.03,
+        }
     else:
         weights = {
             "prompt": 0.00, "hook": 0.22, "keywords": 0.18, "emotion": 0.16,
@@ -1034,6 +1162,9 @@ def score_segment_detailed(
         density_penalty = 5
     else:
         density_penalty = 0
+    if genre == "games" and density_penalty > 10:
+        # Sparse speech during gameplay is normal (action happens on screen).
+        density_penalty = 10
 
     # Map the weighted average into the 35-99 range users expect from a
     # virality score, while preserving relative ordering.
@@ -1442,7 +1573,21 @@ Use apenas os índices da lista acima. Não invente tempos."""
 
 
 # ------------------------------------------------------------- metadata
-def _heuristic_metadata(clip: Dict[str, Any], genre: str, prompt: str) -> Dict[str, Any]:
+CLIP_CTA_BY_LANGUAGE: Dict[str, str] = {
+    "pt": "Siga para mais cortes como este!",
+    "es": "¡Sígueme para más cortes como este!",
+    "en": "Follow for more clips like this!",
+}
+
+
+def _clip_cta(language: Optional[str]) -> str:
+    lang = (language or "pt").lower()
+    return CLIP_CTA_BY_LANGUAGE.get(lang, CLIP_CTA_BY_LANGUAGE["pt"])
+
+
+def _heuristic_metadata(
+    clip: Dict[str, Any], genre: str, prompt: str, language: Optional[str] = None
+) -> Dict[str, Any]:
     text = clip.get("text") or clip.get("hook_text") or ""
     title = clip.get("title") or _title_from_text(text, prompt=prompt, genre=genre)
     hook = clip.get("hook_title") or _hook_from_text(text, prompt=prompt, genre=genre)
@@ -1454,7 +1599,7 @@ def _heuristic_metadata(clip: Dict[str, Any], genre: str, prompt: str) -> Dict[s
             text, prompt=prompt, genre=genre
         ),
         "hashtags": _make_hashtags(text, genre=genre),
-        "cta": "Siga para mais cortes como este!",
+        "cta": _clip_cta(language),
     }
 
 
@@ -1496,16 +1641,27 @@ def enrich_clips(
     language: Optional[str] = None,
     use_ollama: bool = False,
     ollama_model: str = "llama3",
+    output_language: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """Adds title/hook/description/hashtags/CTA to every selected clip.
 
     When Ollama is enabled a single batched call rewrites the copy for all
     clips. Any failure leaves the heuristic copy untouched.
+
+    output_language: "pt"/"es"/"en" forces the copy language; None keeps the
+    video's detected language.
     """
-    enriched = [_heuristic_metadata(dict(clip), genre=genre, prompt=prompt) for clip in clips]
+    copy_language = (output_language or language or "pt").lower()
+    if copy_language not in ("pt", "es", "en"):
+        copy_language = "pt"
+    enriched = [
+        _heuristic_metadata(dict(clip), genre=genre, prompt=prompt, language=copy_language)
+        for clip in clips
+    ]
     if not enriched or not use_ollama or not _ollama_available():
         return enriched
 
+    language_names = {"pt": "português", "es": "español", "en": "english"}
     lines = []
     for idx, clip in enumerate(enriched, start=1):
         lines.append(
@@ -1515,6 +1671,7 @@ def enrich_clips(
     request = f"""Você é um social media manager especialista em conteúdo viral.
 Gênero: {GENRE_PRESETS.get(genre, {}).get('label', 'Automático')}
 Pedido do usuário: {prompt.strip() or 'gera os melhores cortes virais'}
+Idioma OBRIGATÓRIO da copy: {language_names.get(copy_language, 'português')}
 
 Para cada corte abaixo, crie copy pronta para publicar em TikTok/Reels/Shorts.
 Responda ESTRITAMENTE em JSON:
@@ -1538,6 +1695,30 @@ Cortes:
 
 
 # --------------------------------------------------------------- main API
+def _effective_genre(full_text: str, genre: str) -> str:
+    """
+    Resolves genre="auto" by detecting the video's topic from the transcript
+    and mapping it to the closest preset. This gives the keyword scorer real
+    vocabulary to reward (e.g. C4/loot/raid moments in gaming videos) instead
+    of scoring every clip with an empty keyword list.
+    """
+    if genre and genre not in ("auto", ""):
+        return genre
+    try:
+        from .metadata_generator import _detect_topic
+
+        topic = _detect_topic(full_text or "")
+    except Exception:
+        return "viral"
+    return {
+        "gaming_ark": "games",
+        "gaming_generic": "games",
+        "tutorial": "educacional",
+        "vlog": "viral",
+        "generic": "viral",
+    }.get(topic, "viral")
+
+
 def analyze_video_highlights(
     segments: List[Dict[str, Any]],
     full_text: str,
@@ -1552,6 +1733,9 @@ def analyze_video_highlights(
     signals: Optional[Dict[str, Any]] = None,
 ) -> List[Dict[str, Any]]:
     """Main entry point for clip selection."""
+    # Auto-detect the topic so keyword scoring has real vocabulary to work with.
+    effective_genre = _effective_genre(full_text, genre)
+
     if use_ollama:
         ollama_clips = find_highlights_ollama(
             full_text,
@@ -1562,7 +1746,7 @@ def analyze_video_highlights(
             max_duration=max_duration,
             signals=signals,
             prompt=prompt,
-            genre=genre,
+            genre=effective_genre,
         )
         if ollama_clips:
             return ollama_clips
@@ -1574,5 +1758,5 @@ def analyze_video_highlights(
         max_duration=max_duration,
         signals=signals,
         prompt=prompt,
-        genre=genre,
+        genre=effective_genre,
     )

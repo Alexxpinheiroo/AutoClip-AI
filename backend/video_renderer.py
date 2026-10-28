@@ -27,6 +27,35 @@ def _creation_flags() -> int:
     return 0
 
 
+
+def get_video_dimensions(video_path: str) -> Tuple[int, int]:
+    """Returns (width, height) of the video using ffprobe."""
+    try:
+        result = subprocess.run(
+            [
+                FFPROBE_BIN,
+                "-v", "error",
+                "-select_streams", "v:0",
+                "-show_entries", "stream=width,height",
+                "-of", "json",
+                video_path,
+            ],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            creationflags=_creation_flags(),
+        )
+        data = json.loads(result.stdout or "{}")
+        streams = data.get("streams", [])
+        if streams:
+            w = int(streams[0].get("width", 1920))
+            h = int(streams[0].get("height", 1080))
+            return max(16, w), max(16, h)
+    except Exception:
+        pass
+    return 1920, 1080
+
 def get_video_duration(video_path: str) -> float:
     """Returns the duration of a video in seconds using ffprobe."""
     try:
@@ -385,3 +414,180 @@ def extract_thumbnail(
     except Exception as exc:
         print(f"[!] Não foi possível gerar thumbnail: {exc}")
     return None
+
+
+def render_full_video(
+    video_path: str,
+    output_path: str,
+    subtitle_path: Optional[str] = None,
+    sticker_events: Optional[List[Dict[str, Any]]] = None,
+    use_nvenc: bool = True,
+    progress_cb: ProgressCallback = None,
+    cancel_event: Optional[threading.Event] = None,
+    target_aspect: Optional[str] = None,
+) -> Dict[str, Any]:
+    """
+    Renders the full-length video, burning animated subtitles and
+    overlaying timeline sticker badges (Subscribe, Like, Comment, Share).
+    Keeps original resolution by default.
+    """
+    from . import sticker_generator
+
+    output = Path(output_path)
+    output.parent.mkdir(parents=True, exist_ok=True)
+
+    duration = get_video_duration(video_path)
+    if duration <= 0:
+        duration = 10.0
+
+    orig_w, orig_h = get_video_dimensions(video_path)
+    orig_w = orig_w - (orig_w % 2)
+    orig_h = orig_h - (orig_h % 2)
+
+    if target_aspect and target_aspect in ["9:16", "1:1", "16:9"] and target_aspect != "original":
+        from .config import ASPECT_RATIOS
+        target_w, target_h = ASPECT_RATIOS[target_aspect]
+    else:
+        target_w, target_h = orig_w, orig_h
+
+    target_w = target_w - (target_w % 2)
+    target_h = target_h - (target_h % 2)
+
+    cwd = None
+    sub_filter_str = None
+    if subtitle_path:
+        sub_file = Path(subtitle_path).resolve()
+        sub_filter_str = f"subtitles={sub_file.name}"
+        cwd = str(sub_file.parent)
+
+    has_audio = has_audio_stream(video_path)
+
+    # 1. Base video filter
+    vf_base_parts = []
+    if (target_w, target_h) != (orig_w, orig_h):
+        vf_base_parts.append(f"scale={target_w}:{target_h}:force_original_aspect_ratio=increase")
+        vf_base_parts.append(f"crop={target_w}:{target_h}")
+        vf_base_parts.append("setsar=1")
+    else:
+        vf_base_parts.append(f"scale={target_w}:{target_h}")
+        vf_base_parts.append("setsar=1")
+
+    # 2. Build full filter chain
+    extra_input_args: List[str] = []
+    fc_parts: List[str] = []
+
+    if vf_base_parts:
+        fc_parts.append(f"[0:v]{','.join(vf_base_parts)}[vscaled]")
+        current_v = "[vscaled]"
+    else:
+        current_v = "[0:v]"
+
+    if sub_filter_str:
+        fc_parts.append(f"{current_v}{sub_filter_str}[vsub]")
+        current_v = "[vsub]"
+
+    if sticker_events:
+        stk_inputs, stk_filters, current_v = sticker_generator.build_sticker_overlay_filter(
+            sticker_events,
+            video_width=target_w,
+            video_height=target_h,
+            start_input_index=1,
+            base_video_label=current_v,
+        )
+        extra_input_args.extend(stk_inputs)
+        fc_parts.extend(stk_filters)
+
+    fc_parts.append(f"{current_v}null[vout]")
+    filter_complex = ";".join(fc_parts)
+
+    def build_cmd(codec: str) -> list:
+        cmd = [
+            FFMPEG_BIN,
+            "-y",
+            "-hide_banner",
+            "-loglevel", "error",
+            "-i", str(Path(video_path).resolve()),
+        ]
+        cmd += extra_input_args
+        cmd += [
+            "-filter_complex", filter_complex,
+            "-map", "[vout]",
+        ]
+        if has_audio:
+            cmd += ["-map", "0:a:0?"]
+        else:
+            cmd += ["-an"]
+
+        cmd += ["-pix_fmt", "yuv420p"]
+        if codec == "nvenc":
+            cmd += [
+                "-c:v", "h264_nvenc",
+                "-preset", "p5",
+                "-tune", "hq",
+                "-rc", "vbr",
+                "-cq", str(VIDEO_CRF),
+                "-b:v", "0",
+            ]
+        else:
+            cmd += [
+                "-c:v", "libx264",
+                "-preset", "medium",
+                "-crf", str(VIDEO_CRF),
+            ]
+
+        if has_audio:
+            cmd += [
+                "-c:a", "aac",
+                "-b:a", AUDIO_BITRATE,
+                "-ar", "48000",
+            ]
+
+        cmd += [
+            "-movflags", "+faststart",
+            "-progress", "pipe:1",
+            "-nostats",
+            str(output),
+        ]
+        return cmd
+
+    def attempt(codec: str) -> Tuple[int, str]:
+        if progress_cb:
+            label = "GPU (NVENC)" if codec == "nvenc" else "CPU (libx264)"
+            progress_cb(0.0, f"Renderizando vídeo completo com {label}...")
+        return _run_ffmpeg(
+            build_cmd(codec),
+            duration,
+            progress_cb=progress_cb,
+            cancel_event=cancel_event,
+            cwd=cwd,
+        )
+
+    encoder_used = "libx264"
+    if use_nvenc:
+        returncode, log = attempt("nvenc")
+        if returncode == 0 and output.exists() and output.stat().st_size > 0:
+            encoder_used = "h264_nvenc"
+        else:
+            print(f"[!] NVENC falhou na renderização completa, usando libx264: {log[-500:]}")
+            output.unlink(missing_ok=True)
+            returncode, log = attempt("libx264")
+    else:
+        returncode, log = attempt("libx264")
+
+    if returncode != 0 or not output.exists():
+        msg = f"Falha ao renderizar video: {log[-1200:]}"
+        raise RuntimeError(msg)
+
+    if progress_cb:
+        progress_cb(100.0, "Vídeo completo renderizado com sucesso!")
+
+    return {
+        "path": str(output.resolve()),
+        "filename": output.name,
+        "encoder": encoder_used,
+        "duration": round(duration, 2),
+        "width": target_w,
+        "height": target_h,
+        "stickers_count": len(sticker_events) if sticker_events else 0,
+        "size_bytes": output.stat().st_size,
+    }

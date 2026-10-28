@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AutoClip AI — Cortes virais na sua GPU</title>
+  <title>AutoClip AI — Cortes Virais & Legendador com Adesivos</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link rel="stylesheet" href="/style.css">
 </head>
@@ -21,7 +21,7 @@
       </div>
       <div class="brand-text">
         <h1>AutoClip <span>AI</span></h1>
-        <p>OpusClip local · 100% na sua máquina</p>
+        <p>Estúdio local de vídeo na sua GPU • 100% privado</p>
       </div>
     </div>
     <div class="gpu-badge" id="gpuBadge">
@@ -34,6 +34,25 @@
     <div class="primary-col">
       <!-- ============================ COMPOSER ============================ -->
       <section class="panel composer">
+        <!-- MODE SWITCHER -->
+        <div class="mode-switcher" role="tablist">
+          <button class="mode-btn active" id="modeClipsBtn" data-mode="clips" type="button">
+            <span class="mode-icon">⚡</span>
+            <span class="mode-info">
+              <strong>Cortes Virais</strong>
+              <small>Shorts, Reels & TikTok</small>
+            </span>
+          </button>
+          <button class="mode-btn" id="modeFullBtn" data-mode="full_video" type="button">
+            <span class="mode-icon">🎬</span>
+            <span class="mode-info">
+              <strong>Vídeo Longo</strong>
+              <small>Legendas + Adesivos na Timeline</small>
+            </span>
+          </button>
+        </div>
+
+        <!-- INPUT TABS (FILE / URL) -->
         <div class="tabs" role="tablist">
           <button class="tab active" data-tab="file" role="tab">📁 Enviar vídeo</button>
           <button class="tab" data-tab="url" role="tab">🔗 Link (YouTube, TikTok…)</button>
@@ -43,8 +62,8 @@
           <label class="dropzone" id="dropzone">
             <input type="file" id="fileInput" accept="video/*,.mkv,.mov,.webm,.mp4" hidden>
             <div class="drop-icon">⬆</div>
-            <strong>Arraste um vídeo aqui</strong>
-            <span>ou clique para escolher · MP4, MOV, MKV, WEBM</span>
+            <strong>Arraste seu vídeo aqui</strong>
+            <span>ou clique para escolher • MP4, MOV, MKV, WEBM (qualquer duração)</span>
             <div class="file-chip hidden" id="fileChip">
               <span class="file-name" id="fileName"></span>
               <span class="file-size" id="fileSize"></span>
@@ -59,126 +78,283 @@
           <p class="hint">Funciona com YouTube, Instagram, TikTok, Twitch e +1000 sites via yt-dlp.</p>
         </div>
 
-        <div class="prompt-box">
-          <div class="prompt-head">
-            <span>O que você quer cortar? <b>opcional</b></span>
-            <span class="prompt-hint">Descreva o momento como faria para um editor</span>
+        <!-- ======================= MODO CORTES VIRAIS ======================= -->
+        <div id="clipsModeWrapper">
+          <div class="prompt-box" id="promptBox">
+            <div class="prompt-head">
+              <span>O que você quer cortar? <b>opcional</b></span>
+              <span class="prompt-hint">Descreva o momento como faria para um editor</span>
+            </div>
+            <textarea id="promptInput" rows="2" maxlength="500" placeholder="Ex.: momentos engraçados, as dicas mais úteis, as melhores jogadas, opiniões polêmicas…"></textarea>
+            <div class="chips" id="promptChips"></div>
           </div>
-          <textarea id="promptInput" rows="2" maxlength="500" placeholder="Ex.: momentos engraçados, as dicas mais úteis, as melhores jogadas, opiniões polêmicas…"></textarea>
-          <div class="chips" id="promptChips"></div>
+
+          <div class="settings" id="clipSettings">
+            <label class="field">
+              <span>Nº de cortes</span>
+              <input type="number" id="numClips" min="1" max="10" value="3">
+            </label>
+
+            <label class="field">
+              <span>Duração mín. <b id="minLabel">20s</b></span>
+              <input type="range" id="minDur" min="5" max="90" step="5" value="20">
+            </label>
+
+            <label class="field">
+              <span>Duração máx. <b id="maxLabel">60s</b></span>
+              <input type="range" id="maxDur" min="15" max="180" step="5" value="60">
+            </label>
+
+            <label class="field">
+              <span>Modelo Whisper</span>
+              <select id="whisperModel"></select>
+            </label>
+
+            <label class="field">
+              <span>Idioma do vídeo</span>
+              <select id="language">
+                <option value="">Detectar automaticamente (multi-região)</option>
+                <option value="pt-es">Português + Espanhol (troca automática)</option>
+                <option value="pt">Português (forçar)</option>
+                <option value="en">Inglês (forçar)</option>
+                <option value="es">Espanhol (forçar)</option>
+                <option value="fr">Francês (forçar)</option>
+                <option value="de">Alemão (forçar)</option>
+                <option value="it">Italiano (forçar)</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>Idioma da copy (títulos/hashtags)</span>
+              <select id="outputLanguage">
+                <option value="" selected>Automático (segue o idioma do vídeo)</option>
+                <option value="pt">Português</option>
+                <option value="es">Espanhol</option>
+                <option value="en">Inglês</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>Estilo da legenda</span>
+              <select id="subtitleStyle"></select>
+            </label>
+
+            <label class="field">
+              <span>Gênero / contexto</span>
+              <select id="genre"></select>
+            </label>
+
+            <label class="field">
+              <span>Formato do corte</span>
+              <select id="aspectRatio"></select>
+            </label>
+
+            <label class="field">
+              <span>CTA final</span>
+              <input type="text" id="ctaText" maxlength="80" value="Siga para mais cortes!">
+            </label>
+
+            <label class="field">
+              <span>Palavras/grupo <b id="wpgLabel">2</b></span>
+              <input type="range" id="wordsPerGroup" min="1" max="5" step="1" value="2">
+            </label>
+
+            <label class="field">
+              <span>Threshold silêncio <b id="silLabel">0.55s</b></span>
+              <input type="range" id="silenceThreshold" min="0.30" max="2.0" step="0.05" value="0.55">
+            </label>
+          </div>
+
+          <div class="toggles" id="clipToggles">
+            <label class="switch">
+              <input type="checkbox" id="faceTracking" checked>
+              <span class="slider"></span>
+              <span class="switch-text">Reenquadrar no rosto</span>
+            </label>
+            <label class="switch">
+              <input type="checkbox" id="removeSilences" checked>
+              <span class="slider"></span>
+              <span class="switch-text">Auto-edit (remover pausas)</span>
+            </label>
+            <label class="switch">
+              <input type="checkbox" id="useMultimodal" checked>
+              <span class="slider"></span>
+              <span class="switch-text">Analisar áudio + cenas</span>
+            </label>
+            <label class="switch">
+              <input type="checkbox" id="showHook" checked>
+              <span class="slider"></span>
+              <span class="switch-text">Gancho no início</span>
+            </label>
+            <label class="switch">
+              <input type="checkbox" id="showCta" checked>
+              <span class="slider"></span>
+              <span class="switch-text">CTA no final</span>
+            </label>
+            <label class="switch">
+              <input type="checkbox" id="useEmojis" checked>
+              <span class="slider"></span>
+              <span class="switch-text">Emojis nas legendas</span>
+            </label>
+            <label class="switch">
+              <input type="checkbox" id="useNvenc" checked>
+              <span class="slider"></span>
+              <span class="switch-text">Aceleração GPU (NVENC)</span>
+            </label>
+            <label class="switch">
+              <input type="checkbox" id="useOllama">
+              <span class="slider"></span>
+              <span class="switch-text">Ollama (IA local)</span>
+            </label>
+          </div>
         </div>
 
-        <div class="settings" id="clipSettings">
-          <label class="field">
-            <span>Nº de cortes</span>
-            <input type="number" id="numClips" min="1" max="10" value="3">
-          </label>
+        <!-- ======================= MODO VÍDEO LONGO ======================= -->
+        <div class="hidden" id="fullVideoModeWrapper">
+          <div class="mode-banner" id="fullVideoBanner">
+            <div class="mode-banner-icon">✨</div>
+            <div class="mode-banner-text">
+              <h3>Legendador & Enriquecedor de Vídeo Completo</h3>
+              <p>Transcreve seu vídeo editado na íntegra, gera legendas estilizadas palavra por palavra e adiciona adesivos dinâmicos (Inscreva-se, Like, Comentário) na timeline nos intervalos que você escolher.</p>
+            </div>
+          </div>
 
-          <label class="field">
-            <span>Duração mín. <b id="minLabel">20s</b></span>
-            <input type="range" id="minDur" min="5" max="90" step="5" value="20">
-          </label>
+          <div class="settings" id="fullVideoSettings">
+            <label class="field">
+              <span>Estilo da legenda</span>
+              <select id="fullSubtitleStyle"></select>
+            </label>
 
-          <label class="field">
-            <span>Duração máx. <b id="maxLabel">60s</b></span>
-            <input type="range" id="maxDur" min="15" max="180" step="5" value="60">
-          </label>
+            <label class="field">
+              <span>Posição da legenda</span>
+              <select id="fullSubtitlePos">
+                <option value="bottom" selected>Inferior (Padrão YouTube)</option>
+                <option value="center">Centralizado</option>
+                <option value="top">Superior</option>
+              </select>
+            </label>
 
-          <label class="field">
-            <span>Modelo Whisper</span>
-            <select id="whisperModel"></select>
-          </label>
+            <label class="field">
+              <span>Palavras por grupo <b id="fullWpgLabel">3</b></span>
+              <input type="range" id="fullWordsPerGroup" min="1" max="5" step="1" value="3">
+            </label>
 
-          <label class="field">
-            <span>Idioma do vídeo</span>
-            <select id="language">
-              <option value="">Detectar automaticamente</option>
-              <option value="pt">Português</option>
-              <option value="en">Inglês</option>
-              <option value="es">Espanhol</option>
-              <option value="fr">Francês</option>
-              <option value="de">Alemão</option>
-              <option value="it">Italiano</option>
-            </select>
-          </label>
+            <label class="field">
+              <span>Modelo Whisper</span>
+              <select id="fullWhisperModel"></select>
+            </label>
 
-          <label class="field">
-            <span>Estilo da legenda</span>
-            <select id="subtitleStyle"></select>
-          </label>
+            <label class="field">
+              <span>Idioma do áudio</span>
+              <select id="fullLanguage">
+                <option value="" selected>Detectar automaticamente (multi-região)</option>
+                <option value="pt-es">Português + Espanhol (troca automática)</option>
+                <option value="pt">Português (forçar)</option>
+                <option value="en">Inglês (forçar)</option>
+                <option value="es">Espanhol (forçar)</option>
+                <option value="fr">Francês (forçar)</option>
+                <option value="de">Alemão (forçar)</option>
+                <option value="it">Italiano (forçar)</option>
+              </select>
+            </label>
 
-          <label class="field">
-            <span>Gênero / contexto</span>
-            <select id="genre"></select>
-          </label>
+            <label class="field">
+              <span>Idioma do pacote de publicação</span>
+              <select id="fullOutputLanguage">
+                <option value="" selected>Automático (segue o idioma do vídeo)</option>
+                <option value="pt">Português</option>
+                <option value="es">Espanhol</option>
+                <option value="en">Inglês</option>
+              </select>
+            </label>
 
-          <label class="field">
-            <span>Formato do corte</span>
-            <select id="aspectRatio"></select>
-          </label>
+            <label class="field">
+              <span>Enquadramento / Resolução</span>
+              <select id="fullAspectRatio">
+                <option value="original" selected>Manter Original (Recomendado)</option>
+                <option value="16:9">16:9 Horizontal (YouTube / TV)</option>
+                <option value="9:16">9:16 Vertical (Shorts/Reels)</option>
+                <option value="1:1">1:1 Quadrado (Feed)</option>
+              </select>
+            </label>
 
-          <label class="field">
-            <span>CTA final</span>
-            <input type="text" id="ctaText" maxlength="80" value="Siga para mais cortes!">
-          </label>
+            <label class="field">
+              <span>Intervalo dos Adesivos</span>
+              <select id="fullStickerInterval"></select>
+            </label>
 
-          <label class="field">
-            <span>Palavras/grupo <b id="wpgLabel">2</b></span>
-            <input type="range" id="wordsPerGroup" min="1" max="5" step="1" value="2">
-          </label>
+            <label class="field hidden" id="fullCustomIntervalField">
+              <span>Intervalo (segundos)</span>
+              <input type="number" id="fullCustomInterval" min="15" max="3600" value="90">
+            </label>
 
-          <label class="field">
-            <span>Threshold silêncio <b id="silLabel">0.55s</b></span>
-            <input type="range" id="silenceThreshold" min="0.30" max="2.0" step="0.05" value="0.55">
-          </label>
+            <label class="field">
+              <span>Posição dos Adesivos</span>
+              <select id="fullStickerPos"></select>
+            </label>
+
+            <label class="field">
+              <span>Duração do Adesivo <b id="fullStickerDurLabel">4.5s</b></span>
+              <input type="range" id="fullStickerDur" min="3.0" max="8.0" step="0.5" value="4.5">
+            </label>
+
+            <label class="field" id="chapterMinDurField">
+              <span>Duração mínima por capítulo <b id="chapterMinDurLabel">60s</b></span>
+              <input type="range" id="chapterMinDur" min="30" max="300" step="15" value="60">
+            </label>
+          </div>
+
+          <!-- STICKERS SELECTION CARDS -->
+          <div class="sticker-selector" id="fullStickerSelector">
+            <div class="sticker-selector-head">
+              <div>
+                <strong>Adesivos Ativos na Linha do Tempo</strong>
+                <p>Clique para ligar ou desligar cada tipo de adesivo animado</p>
+              </div>
+            </div>
+            <div class="sticker-grid" id="stickerCardsGrid">
+              <!-- Rendered dynamically by app.js -->
+            </div>
+          </div>
+
+          <div class="toggles" id="fullVideoToggles">
+            <label class="switch">
+              <input type="checkbox" id="fullBurnSubtitles" checked>
+              <span class="slider"></span>
+              <span class="switch-text">Queimar legendas no vídeo</span>
+            </label>
+            <label class="switch">
+              <input type="checkbox" id="fullExportSrt" checked>
+              <span class="slider"></span>
+              <span class="switch-text">Gerar arquivo .SRT avulso</span>
+            </label>
+            <label class="switch">
+              <input type="checkbox" id="fullUseStickers" checked>
+              <span class="slider"></span>
+              <span class="switch-text">Ativar Adesivos na Timeline</span>
+            </label>
+            <label class="switch">
+              <input type="checkbox" id="fullUseEmojis">
+              <span class="slider"></span>
+              <span class="switch-text">Emojis nas legendas</span>
+            </label>
+            <label class="switch">
+              <input type="checkbox" id="fullUseNvenc" checked>
+              <span class="slider"></span>
+              <span class="switch-text">Aceleração GPU (NVENC)</span>
+            </label>
+            <label class="switch">
+              <input type="checkbox" id="fullExportChapters" checked>
+              <span class="slider"></span>
+              <span class="switch-text">🗂️ Gerar Capítulos automáticos (.txt YouTube)</span>
+            </label>
+          </div>
         </div>
 
-        <div class="toggles" id="clipToggles">
-          <label class="switch">
-            <input type="checkbox" id="faceTracking" checked>
-            <span class="slider"></span>
-            <span class="switch-text">Reenquadrar no rosto</span>
-          </label>
-          <label class="switch">
-            <input type="checkbox" id="removeSilences" checked>
-            <span class="slider"></span>
-            <span class="switch-text">Auto-edit (remover pausas)</span>
-          </label>
-          <label class="switch">
-            <input type="checkbox" id="useMultimodal" checked>
-            <span class="slider"></span>
-            <span class="switch-text">Analisar áudio + cenas</span>
-          </label>
-          <label class="switch">
-            <input type="checkbox" id="showHook" checked>
-            <span class="slider"></span>
-            <span class="switch-text">Gancho no início</span>
-          </label>
-          <label class="switch">
-            <input type="checkbox" id="showCta" checked>
-            <span class="slider"></span>
-            <span class="switch-text">CTA no final</span>
-          </label>
-          <label class="switch">
-            <input type="checkbox" id="useEmojis" checked>
-            <span class="slider"></span>
-            <span class="switch-text">Emojis nas legendas</span>
-          </label>
-          <label class="switch">
-            <input type="checkbox" id="useNvenc" checked>
-            <span class="slider"></span>
-            <span class="switch-text">Aceleração GPU (NVENC)</span>
-          </label>
-          <label class="switch">
-            <input type="checkbox" id="useOllama">
-            <span class="slider"></span>
-            <span class="switch-text">Ollama (IA local)</span>
-          </label>
-        </div>
-
+        <!-- ACTION BUTTON -->
         <button class="btn-primary" id="startBtn">
-          <span class="btn-icon">✦</span>
-          <span class="btn-label">Gerar cortes virais</span>
+          <span class="btn-icon">⚡</span>
+          <span class="btn-label" id="startBtnLabel">Gerar cortes virais</span>
         </button>
       </section>
 
@@ -202,11 +378,77 @@
 
       <!-- ============================ RESULTS ============================ -->
       <section class="results hidden" id="resultsSection">
+        <!-- Results header -->
         <div class="section-head">
-          <h2>Cortes prontos <span class="count-pill" id="clipCount">0</span></h2>
-          <button class="btn ghost small" id="openFolderBtn">📂 Abrir pasta</button>
+          <h2 id="resultsHeading">Resultado <span class="count-pill" id="clipCount">0</span></h2>
+          <button class="btn ghost small" id="openFolderBtn">📁 Abrir pasta</button>
         </div>
+
+        <!-- Clips view (for shorts) -->
         <div class="clips-grid" id="clipsGrid"></div>
+
+        <!-- Full video showcase (for long videos) -->
+        <div class="full-video-showcase hidden" id="fullVideoShowcase">
+          <div class="full-video-card">
+            <div class="player-wrapper">
+              <video id="fullVideoPlayer" controls playsinline preload="metadata"></video>
+            </div>
+            <div class="full-video-meta">
+              <div class="full-video-info">
+                <h3 id="fullVideoTitle">Vídeo Legendado</h3>
+                <div class="full-video-tags" id="fullVideoTags"></div>
+              </div>
+              <div class="full-video-actions">
+                <a class="btn-primary small" id="fullDownloadBtn" download>
+                  <span>⬇️ Baixar MP4</span>
+                </a>
+                <a class="btn ghost small hidden" id="fullDownloadSrtBtn" download>
+                  <span>📝 Baixar Legenda .SRT</span>
+                </a>
+                <a class="btn ghost small hidden" id="fullDownloadChaptersBtn" download>
+                  <span>🗂️ Baixar Capítulos .TXT</span>
+                </a>
+                <button class="btn ghost small hidden" id="fullCopyChaptersBtn">
+                  <span>📋 Copiar Capítulos</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- TIMELINE STICKERS NAVIGATOR -->
+            <div class="timeline-nav-box" id="timelineNavBox">
+              <div class="timeline-nav-head">
+                <span>📍 Linha do Tempo dos Adesivos (clique para pular):</span>
+              </div>
+              <div class="timeline-badges" id="timelineBadges"></div>
+            </div>
+
+            <!-- CHAPTERS PANEL -->
+            <div class="chapters-panel hidden" id="chaptersPanel">
+              <div class="chapters-head">
+                <span>🗂️ Capítulos Detectados Automaticamente</span>
+                <small class="chapters-hint">Copie e cole na descrição do YouTube</small>
+              </div>
+              <div class="chapters-list" id="chaptersList"></div>
+            </div>
+
+            <!-- YOUTUBE PUBLISHING PACKAGE -->
+            <div class="chapters-panel hidden" id="metaPanel">
+              <div class="chapters-head">
+                <span>🚀 Pacote de Publicação — Títulos, Descrição e Hashtags</span>
+                <small class="chapters-hint">Gerado automaticamente a partir da transcrição</small>
+              </div>
+              <div class="meta-titles" id="metaTitles"></div>
+              <div class="meta-desc-box">
+                <textarea id="metaDescription" rows="12" readonly spellcheck="false"></textarea>
+                <div class="meta-actions">
+                  <button class="btn ghost small" id="metaCopyDescBtn"><span>📋 Copiar Descrição</span></button>
+                  <a class="btn ghost small hidden" id="fullDownloadMetaBtn" download><span>📄 Baixar Pacote .TXT</span></a>
+                </div>
+              </div>
+              <div class="meta-tags-row" id="metaTagsRow"></div>
+            </div>
+          </div>
+        </div>
       </section>
     </div>
 
@@ -214,20 +456,21 @@
     <aside class="sidebar">
       <div class="sidebar-head">
         <h2>Histórico</h2>
-        <button class="icon-btn" id="refreshHistory" title="Atualizar">⟳</button>
+        <button class="icon-btn" id="refreshHistory" title="Atualizar">🔄</button>
       </div>
       <div class="history" id="historyList">
         <p class="empty">Nenhum processamento ainda.</p>
       </div>
       <div class="sidebar-tip">
-        <strong>Dica</strong>
-        <p>Vídeos com fala contínua e de 5 a 30 minutos geram os melhores cortes.</p>
+        <strong>💡 Dicas de Sucesso</strong>
+        <p>• <b>Vídeo Longo:</b> Ideal para colocar legendas e adesivos de retenção em podcasts, aulas e tutoriais.</p>
+        <p>• <b>Cortes Virais:</b> Gera trechos de alta retenção 9:16 prontos para o TikTok/Reels.</p>
       </div>
     </aside>
   </main>
 
   <footer class="footer">
-    <span>AutoClip-AI · faster-whisper + MediaPipe + ffmpeg</span>
+    <span>AutoClip-AI • faster-whisper + MediaPipe + ffmpeg NVENC</span>
     <span id="footerHw"></span>
   </footer>
 

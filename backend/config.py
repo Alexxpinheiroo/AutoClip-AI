@@ -19,8 +19,10 @@ DOWNLOADS_DIR = BASE_DIR / "downloads"
 OUTPUTS_DIR = BASE_DIR / "outputs"
 MODELS_DIR = BASE_DIR / "models"
 FRONTEND_DIR = BASE_DIR / "frontend"
+ASSETS_DIR = BASE_DIR / "assets"
+STICKERS_DIR = ASSETS_DIR / "stickers"
 
-for directory in [DOWNLOADS_DIR, OUTPUTS_DIR, MODELS_DIR]:
+for directory in [DOWNLOADS_DIR, OUTPUTS_DIR, MODELS_DIR, STICKERS_DIR]:
     directory.mkdir(parents=True, exist_ok=True)
 
 # Hardware settings
@@ -29,7 +31,10 @@ COMPUTE_TYPE = "float16" if torch.cuda.is_available() else "int8"
 GPU_NAME = torch.cuda.get_device_name(0) if torch.cuda.is_available() else "CPU Mode"
 
 # Defaults
-DEFAULT_WHISPER_MODEL = "base"  # options: tiny, base, small, medium, large-v3
+# "large-v3" is the multilingual gold standard (best pt/es accuracy and the
+# only reliable option for code-switched content). "base" was the old default
+# and was the root cause of wrong-language captions.
+DEFAULT_WHISPER_MODEL = "large-v3"  # options: tiny, base, small, medium, large-v3-turbo, large-v3
 DEFAULT_CLIP_MIN_DURATION = 20  # seconds
 DEFAULT_CLIP_MAX_DURATION = 60  # seconds
 TARGET_WIDTH = 1080
