@@ -383,7 +383,11 @@ def process_job(
                     video_path, start_time, end_time, target_aspect=target_aspect
                 )
                 crop = reframe.get("crop")
-                if crop is None and reframe.get("reframe_needed"):
+                if reframe.get("reframe_needed") and not reframe.get("face_found"):
+                    # No face anywhere in the segment: center-cropping would
+                    # cut HUD/inventory/facecam, so keep the full frame with a
+                    # blurred background instead.
+                    crop = None
                     fit_full_frame = True
                     update(slice_start + slice_size * 0.03, "Sem rosto detectado: mantendo tela inteira com fundo desfocado.")
             except Exception as exc:
