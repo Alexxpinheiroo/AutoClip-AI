@@ -370,14 +370,22 @@ def process_job(
                 min_silence=options.silence_threshold,
             )
 
-        # Face tracking -> crop box for the selected aspect ratio.
+        # Reframe: face tracking -> crop box for the selected aspect ratio.
+        # When no face is present (e.g. first-person gameplay) a center crop
+        # would cut HUD/inventory elements on the sides, so the full frame is
+        # kept visible with a blurred background instead.
         crop = None
+        fit_full_frame = False
         if options.use_face_tracking:
             update(slice_start + slice_size * 0.03, f"Corte {clip_number}/{total_clips}: reenquadrando...")
             try:
-                crop = face_tracker.calculate_crop_coordinates(
+                reframe = face_tracker.calculate_crop_coordinates(
                     video_path, start_time, end_time, target_aspect=target_aspect
                 )
+                crop = reframe.get("crop")
+                if crop is None and reframe.get("reframe_needed"):
+                    fit_full_frame = True
+                    update(slice_start + slice_size * 0.03, "Sem rosto detectado: mantendo tela inteira com fundo desfocado.")
             except Exception as exc:
                 print(f"[!] Rastreamento facial falhou ({exc}); usando corte central.")
                 crop = None
@@ -437,6 +445,7 @@ def process_job(
                 target_height=target_height,
                 keep_intervals=plan[0] if plan else None,
                 edited_duration=plan[2] if plan else None,
+                fit_full_frame=fit_full_frame,
             )
         except Exception as exc:
             if isinstance(exc, video_renderer.RenderCancelled) or (
@@ -462,6 +471,7 @@ def process_job(
                 cancel_event=cancel_event,
                 target_width=target_width,
                 target_height=target_height,
+                fit_full_frame=fit_full_frame,
             )
 
         thumbnail = video_renderer.extract_thumbnail(

@@ -23,7 +23,7 @@ Gere **Shorts, Reels e TikToks** automaticamente a partir de vídeos longos, **1
 3. **Compreensão de Pedido (Prompt)**: Permite orientar o corte em linguagem natural (ex: *"momentos engraçados"*, *"as melhores dicas"*, *"jogadas épicas"*) com filtragem por gênero e contexto.
 4. **Análise de Áudio e Imagem**: Mede energia e variação da fala, detecta trocas de cenas com `ffmpeg` e `numpy`, combinando métricas de retenção sem precisar de modelos de visão excessivamente pesados.
 5. **Score de Viralidade Transparente**: Avalia cada trecho com pontuação detalhada: gancho, palavras-chave, ritmo, retenção, emoção, dinâmica de áudio/imagem e aderência ao pedido do usuário.
-6. **Reenquadramento Inteligente (9:16, 1:1, 16:9)**: Rastreamento facial em tempo real com MediaPipe BlazeFace (com fallback para Haar Cascade ou recorte centralizado).
+6. **Reenquadramento Inteligente (9:16, 1:1, 16:9)**: com rosto detectado, recorta seguindo a pessoa (MediaPipe BlazeFace, fallback Haar Cascade ou recorte centralizado). Sem rosto no trecho (ex.: gameplay em primeira pessoa), mantém a **tela inteira visível** sobre um fundo desfocado — nada de HUD, inventário ou facecam cortados nas laterais.
 7. **Auto-Edit**: Remove pausas mortas e silêncios excessivos preservando o raciocínio e a cadência do orador.
 8. **Legendas Animadas Dinâmicas**: Legendas estilo Hormozi / MrBeast em formato `.ass`, destaque palavra por palavra, gancho nos primeiros segundos, chamada para ação (CTA) ao final e suporte a emojis contextuais.
 9. **Renderização Acelerada por Hardware**: Exportação ultra-rápida via `ffmpeg` com encoder NVIDIA NVENC (`h264_nvenc`) com fallback inteligente para CPU (`libx264`).

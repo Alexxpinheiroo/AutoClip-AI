@@ -174,6 +174,32 @@ def build_video_filters(
     return ",".join(filters)
 
 
+def build_fit_filter_tail(
+    subtitle_name: Optional[str] = None,
+    target_width: int = TARGET_WIDTH,
+    target_height: int = TARGET_HEIGHT,
+) -> str:
+    """Builds a filter-graph tail that fits the FULL frame inside the target
+    canvas, filling the leftover top/bottom space with a blurred, darkened
+    copy of the frame (classic Shorts/Reels pillarbox style).
+
+    Used when no face is present (e.g. first-person gameplay): center-cropping
+    would cut HUD/inventory elements on the sides, so the whole frame is kept
+    visible instead. ``{IN}`` inside the template is replaced with the input
+    label ("0:v" or a filter_complex label such as "vc").
+    """
+    subtitle_part = f",subtitles={subtitle_name}" if subtitle_name else ""
+    return (
+        "{IN}split=2[fitbg][fitfg];"
+        f"[fitbg]scale={target_width}:{target_height}:force_original_aspect_ratio=increase,"
+        f"crop={target_width}:{target_height},"
+        "boxblur=24:2,"
+        "eq=brightness=-0.08[fitbgd];"
+        f"[fitfg]scale={target_width}:{target_height}:force_original_aspect_ratio=decrease[fitfgd];"
+        f"[fitbgd][fitfgd]overlay=(W-w)/2:(H-h)/2,setsar=1{subtitle_part}[vout]"
+    )
+
+
 def _normalize_keep_intervals(
     keep_intervals: Optional[List[Tuple[float, float]]],
     start_time: float,
@@ -207,15 +233,21 @@ def _build_filter_complex(
     video_filter: str,
     intervals: List[Tuple[float, float]],
     has_audio: bool,
+    fit_tail: Optional[str] = None,
 ) -> Tuple[str, str, str]:
-    """Returns (filter_complex, video_label, audio_label)."""
-    parts: List[str] = []
+    """Returns (filter_complex, video_label, audio_label).
+
+    When ``fit_tail`` is provided (full-frame blurred-pillarbox mode) it
+    replaces the linear video filter and receives the concat output label
+    via the ``{IN}`` placeholder.
+    """
+    chain_parts: List[str] = []
     for index, (start, end) in enumerate(intervals):
-        parts.append(
+        chain_parts.append(
             f"[0:v]trim=start={start:.3f}:end={end:.3f},setpts=PTS-STARTPTS[v{index}]"
         )
         if has_audio:
-            parts.append(
+            chain_parts.append(
                 f"[0:a]atrim=start={start:.3f}:end={end:.3f},asetpts=PTS-STARTPTS[a{index}]"
             )
 
@@ -225,17 +257,20 @@ def _build_filter_complex(
     else:
         if has_audio:
             inputs = "".join(f"[v{i}][a{i}]" for i in range(len(intervals)))
-            parts.append(f"{inputs}concat=n={len(intervals)}:v=1:a=1[vc][ac]")
+            chain_parts.append(f"{inputs}concat=n={len(intervals)}:v=1:a=1[vc][ac]")
             video_in = "[vc]"
             audio_out = "[ac]"
         else:
             inputs = "".join(f"[v{i}]" for i in range(len(intervals)))
-            parts.append(f"{inputs}concat=n={len(intervals)}:v=1:a=0[vc]")
+            chain_parts.append(f"{inputs}concat=n={len(intervals)}:v=1:a=0[vc]")
             video_in = "[vc]"
             audio_out = ""
 
-    parts.append(f"{video_in}{video_filter}[vout]")
-    return ";".join(parts), "[vout]", audio_out
+    if fit_tail:
+        chain_parts.append(fit_tail.replace("{IN}", video_in))
+    else:
+        chain_parts.append(f"{video_in}{video_filter}[vout]")
+    return ";".join(chain_parts), "[vout]", audio_out
 
 
 def render_clip(
@@ -252,11 +287,16 @@ def render_clip(
     target_height: int = TARGET_HEIGHT,
     keep_intervals: Optional[List[Tuple[float, float]]] = None,
     edited_duration: Optional[float] = None,
+    fit_full_frame: bool = False,
 ) -> Dict[str, Any]:
     """
     Cuts a clip from ``video_path``, reframes it to the requested aspect ratio
     and burns the ASS subtitles. ``keep_intervals`` (absolute source timestamps)
     enables auto jump-cuts by removing long pauses.
+
+    When ``fit_full_frame`` is True the whole source frame is kept visible on
+    the target canvas with a blurred background instead of being cropped
+    (used when no face is detected, e.g. first-person gameplay).
 
     Uses NVENC when available and transparently falls back to libx264 if
     hardware encoding fails.
@@ -278,7 +318,15 @@ def render_clip(
         subtitle_name = subtitle.name
         cwd = str(subtitle.parent)
 
-    video_filter = build_video_filters(crop, subtitle_name, target_width, target_height)
+    fit_tail = (
+        build_fit_filter_tail(subtitle_name, target_width, target_height)
+        if fit_full_frame
+        else None
+    )
+    video_filter = (
+        None if fit_full_frame
+        else build_video_filters(crop, subtitle_name, target_width, target_height)
+    )
     has_audio = has_audio_stream(video_path)
 
     def build_command(codec: str) -> list:
@@ -294,11 +342,18 @@ def render_clip(
 
         if use_cuts and intervals:
             filter_complex, video_label, audio_label = _build_filter_complex(
-                video_filter, intervals, has_audio
+                video_filter or "", intervals, has_audio, fit_tail=fit_tail
             )
             cmd += ["-filter_complex", filter_complex, "-map", video_label]
             if has_audio and audio_label:
                 cmd += ["-map", audio_label]
+            else:
+                cmd += ["-an"]
+        elif fit_tail:
+            # No cuts: apply the fit graph directly on the input stream.
+            cmd += ["-filter_complex", fit_tail.replace("{IN}", "[0:v]"), "-map", "[vout]"]
+            if has_audio:
+                cmd += ["-map", "0:a:0"]
             else:
                 cmd += ["-an"]
         else:

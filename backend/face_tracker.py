@@ -1,7 +1,7 @@
 import shutil
 import urllib.request
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 import cv2
 import numpy as np
@@ -115,7 +115,7 @@ def calculate_crop_coordinates(
     end_time: float,
     sample_rate_fps: float = 2.0,
     target_aspect: float = 9.0 / 16.0,
-) -> Tuple[int, int, int, int]:
+) -> Dict[str, Any]:
     """
     Analyzes a video segment to determine the best crop box
     (width, height, x, y) centered on the speaker for any target aspect ratio.
@@ -123,6 +123,11 @@ def calculate_crop_coordinates(
     Uses MediaPipe BlazeFace when possible and falls back to OpenCV Haar
     cascade. Face positions are smoothed with a median filter to avoid
     camera jitter.
+
+    Returns a dict:
+      crop: (width, height, x, y) tuple, or None when no reframe is needed
+      face_found: whether any face was detected in the segment
+      reframe_needed: whether the source aspect differs from the target
     """
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
@@ -133,7 +138,13 @@ def calculate_crop_coordinates(
     fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
 
     target_ratio = max(0.2, min(5.0, float(target_aspect)))
-    if orig_width / max(orig_height, 1) > target_ratio:
+    source_ratio = orig_width / max(orig_height, 1)
+    # Within ~2% of the target ratio there is nothing to cut.
+    reframe_needed = abs(source_ratio - target_ratio) / target_ratio > 0.02
+    if not reframe_needed:
+        return {"crop": None, "face_found": False, "reframe_needed": False}
+
+    if source_ratio > target_ratio:
         # Wider than the target -> crop the sides, keep full height.
         crop_width = int(orig_height * target_ratio)
         crop_height = orig_height
@@ -207,4 +218,8 @@ def calculate_crop_coordinates(
     target_x = max(0, min(orig_width - crop_width, target_x))
     target_y = max(0, min(orig_height - crop_height, target_y))
 
-    return crop_width, crop_height, target_x, target_y
+    return {
+        "crop": (crop_width, crop_height, target_x, target_y),
+        "face_found": bool(face_x_centers),
+        "reframe_needed": True,
+    }
